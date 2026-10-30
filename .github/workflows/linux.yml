@@ -40,22 +40,23 @@ jobs:
       - name: Cross-compile arm64 Mach-O (UI shell + exploit)
         run: |
           SDK=/opt/sdks/iPhoneOS16.5.sdk
-          clang -target arm64-apple-ios15.0 \
-            -isysroot "$SDK" \
-            --ld-path=/usr/bin/ld64.lld \
-            -fuse-ld=lld \
-            -fobjc-arc -fobjc-runtime=ios-15.0.0 \
-            -I./clearsword \
-            -framework IOKit -framework IOSurface -framework Foundation -framework UIKit \
-            -Wl,-s \
+          mkdir -p /tmp/obj
+          for f in main.m AppDelegate.m SceneDelegate.m ViewController.m poc.c phys_oob.c free_thread.c socket.c utils.c krw.c surface.c kmem.c; do
+            clang -target arm64-apple-ios15.0 \
+              -isysroot "$SDK" \
+              -fobjc-arc -fobjc-runtime=ios-15.0.0 \
+              -I./clearsword \
+              -c "clearsword/$f" -o "/tmp/obj/${f%.*}.o"
+          done
+          ls -la /tmp/obj
+          /usr/bin/ld64.lld \
+            -arch arm64 -platform_version ios 15.0.0 16.5 \
+            -syslibroot "$SDK" \
+            -pie \
             -o /tmp/newbin \
-            clearsword/main.m \
-            clearsword/AppDelegate.m \
-            clearsword/SceneDelegate.m \
-            clearsword/ViewController.m \
-            clearsword/poc.c clearsword/phys_oob.c clearsword/free_thread.c \
-            clearsword/socket.c clearsword/utils.c clearsword/krw.c \
-            clearsword/surface.c clearsword/kmem.c
+            /tmp/obj/*.o \
+            -framework IOKit -framework IOSurface -framework Foundation -framework UIKit \
+            -lobjc
           file /tmp/newbin || llvm-readobj -h /tmp/newbin | head -20
 
       - name: Assemble IPA
