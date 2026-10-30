@@ -1,0 +1,44 @@
+name: build
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ldid
+        run: brew install ldid
+
+      # SSH/越狱机部署用的裸二进制（带 ent.xml 特权，root 执行）
+      - name: Build debug binary (entitled, for jailbroken SSH deploy)
+        run: make debug_binary
+
+      - name: Build plain binary
+        run: make binary
+
+      # 未越狱侧载用的免签 IPA + ldid 注入 IOSurface entitlement
+      - name: Build unsigned IPA
+        run: |
+          xcodebuild clean build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
+            PRODUCT_BUNDLE_IDENTIFIER="com.therealclarity.clearsword" \
+            -sdk iphoneos -configuration Release
+          rm -rf Payload && mkdir Payload
+          cp -r build/Release-iphoneos/clearsword.app Payload/
+          xattr -cr Payload/clearsword.app
+          strip Payload/clearsword.app/clearsword || true
+          ldid -Sent.xml Payload/clearsword.app/clearsword
+          zip -r9 clearsword.ipa Payload
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: clearsword-build
+          path: |
+            clearsword.ipa
+            clearsword.bin
+            clearsword-debug.bin
+          retention-days: 30
