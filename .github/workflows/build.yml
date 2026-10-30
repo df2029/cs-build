@@ -6,7 +6,11 @@ on:
 
 jobs:
   build:
-    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on: [macos-15, macos-14, macos-13]
+    runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,7 +40,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: clearsword-build
+          name: clearsword-build-${{ matrix.runs-on }}
           path: |
             clearsword.ipa
             clearsword.bin
