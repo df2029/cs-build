@@ -49,7 +49,19 @@ jobs:
               -c "clearsword/$f" -o "/tmp/obj/${f%.*}.o"
           done
           ls -la /tmp/obj
-          /usr/bin/ld64.lld \
+          # Ubuntu's lld package installs ld.lld/lld-link but ld64.lld lives under
+          # /usr/lib/llvm-*/bin/, and some images ship only lld-18's copy.
+          LD64="$(command -v ld64.lld || true)"
+          if [ -z "$LD64" ]; then
+            LD64="$(ls /usr/lib/llvm-*/bin/ld64.lld 2>/dev/null | head -1 || true)"
+          fi
+          if [ -z "$LD64" ]; then
+            echo "ld64.lld not found, trying apt install lld-18"
+            sudo apt-get install -y -q lld-18 || true
+            LD64="$(ls /usr/lib/llvm-*/bin/ld64.lld 2>/dev/null | head -1 || true)"
+          fi
+          echo "using linker: ${LD64:-MISSING}"
+          "$LD64" \
             -arch arm64 -platform_version ios 15.0.0 16.5 \
             -syslibroot "$SDK" \
             -pie \

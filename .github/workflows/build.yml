@@ -1,8 +1,9 @@
 name: build
 on:
+  # macOS runners are effectively unavailable on the free tier right now
+  # (macos-13 sat queued for nearly 3 hours). Build on demand only; routine
+  # builds go through linux.yml.
   workflow_dispatch:
-  push:
-    branches: [main, master]
 
 jobs:
   build:
