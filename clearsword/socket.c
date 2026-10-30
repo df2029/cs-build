@@ -6,7 +6,15 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+#if __has_include(<sys/fileport.h>)
 #include <sys/fileport.h>
+#else
+/* iPhoneOS SDK ships no sys/fileport.h; the ABI is a mach_port alias. */
+#include <mach/mach.h>
+typedef mach_port_t fileport_t;
+int fileport_makeport(int fd, fileport_t *port);
+int fileport_makefd(fileport_t port);
+#endif
 #include <sys/socket.h>
 #include <unistd.h>
 

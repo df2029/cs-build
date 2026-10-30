@@ -31,13 +31,11 @@ jobs:
           sudo tar -xf /tmp/sdk.tar.xz -C /opt/sdks
           ls /opt/sdks
 
-      - name: Download previous app bundle (compiled storyboards)
-        uses: actions/download-artifact@v4
-        with:
-          name: clearsword-build
-          run-id: 41076477030
-          path: /tmp/oldart
-        continue-on-error: true
+      - name: Expand app template (compiled storyboards)
+        run: |
+          mkdir -p /tmp/oldipa
+          unzip -q template_bundle.zip -d /tmp/oldipa
+          find /tmp/oldipa -name "*.storyboardc" -o -name "Info.plist" | head -10
 
       - name: Cross-compile arm64 Mach-O (UI shell + exploit)
         run: |
@@ -60,13 +58,11 @@ jobs:
 
       - name: Assemble IPA
         run: |
-          if [ -f /tmp/oldart/clearsword.ipa ]; then
-            echo "== reusing compiled storyboards from run 41076477030 =="
-            mkdir -p /tmp/oldipa
-            unzip -q /tmp/oldart/clearsword.ipa -d /tmp/oldipa
+          if [ -d /tmp/oldipa/Payload/clearsword.app ]; then
+            echo "== using compiled storyboards from template_bundle.zip =="
             cp /tmp/newbin /tmp/oldipa/Payload/clearsword.app/clearsword
           else
-            echo "== no old artifact; assembling minimal bundle from source =="
+            echo "!! template bundle missing; assembling minimal bundle from source"
             mkdir -p /tmp/oldipa/Payload/clearsword.app/Base.lproj
             cp /tmp/newbin /tmp/oldipa/Payload/clearsword.app/clearsword
             cp clearsword/Info.plist /tmp/oldipa/Payload/clearsword.app/
