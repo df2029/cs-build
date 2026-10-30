@@ -68,7 +68,7 @@ jobs:
             -o /tmp/newbin \
             /tmp/obj/*.o \
             -framework IOKit -framework IOSurface -framework Foundation -framework UIKit \
-            -lobjc
+            -lSystem -lobjc
           file /tmp/newbin || llvm-readobj -h /tmp/newbin | head -20
 
       - name: Assemble IPA
