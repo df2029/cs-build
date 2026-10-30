@@ -1,0 +1,90 @@
+name: linux-build
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libssl-dev clang llvm unzip zip
+
+      - name: Build ldid
+        run: |
+          git clone --depth 1 https://github.com/theos/ldid /tmp/ldid
+          make -C /tmp/ldid -j2
+          sudo cp /tmp/ldid/ldid /usr/local/bin/ldid
+          ldid -V || true
+
+      - name: Fetch iPhoneOS SDK
+        run: |
+          wget -q "https://github.com/theos/sdks/releases/download/v16.5/iPhoneOS16.5.sdk.tar.xz" -O /tmp/sdk.tar.xz
+          sudo mkdir -p /opt/sdks
+          sudo tar -xf /tmp/sdk.tar.xz -C /opt/sdks
+          ls /opt/sdks
+
+      - name: Download previous app bundle (compiled storyboards)
+        uses: actions/download-artifact@v4
+        with:
+          name: clearsword-build
+          run-id: 41076477030
+          path: /tmp/oldart
+        continue-on-error: true
+
+      - name: Cross-compile arm64 Mach-O (UI shell + exploit)
+        run: |
+          SDK=/opt/sdks/iPhoneOS16.5.sdk
+          clang -target arm64-apple-ios15.0 \
+            -isysroot "$SDK" \
+            -fobjc-arc -fobjc-runtime=ios-15.0.0 \
+            -I./clearsword \
+            -framework IOKit -framework IOSurface -framework Foundation -framework UIKit \
+            -Wl,-s \
+            -o /tmp/newbin \
+            clearsword/main.m \
+            clearsword/AppDelegate.m \
+            clearsword/SceneDelegate.m \
+            clearsword/ViewController.m \
+            clearsword/poc.c clearsword/phys_oob.c clearsword/free_thread.c \
+            clearsword/socket.c clearsword/utils.c clearsword/krw.c \
+            clearsword/surface.c clearsword/kmem.c
+          file /tmp/newbin || llvm-readobj -h /tmp/newbin | head -20
+
+      - name: Assemble IPA
+        run: |
+          if [ -f /tmp/oldart/clearsword.ipa ]; then
+            echo "== reusing compiled storyboards from run 41076477030 =="
+            mkdir -p /tmp/oldipa
+            unzip -q /tmp/oldart/clearsword.ipa -d /tmp/oldipa
+            cp /tmp/newbin /tmp/oldipa/Payload/clearsword.app/clearsword
+          else
+            echo "== no old artifact; assembling minimal bundle from source =="
+            mkdir -p /tmp/oldipa/Payload/clearsword.app/Base.lproj
+            cp /tmp/newbin /tmp/oldipa/Payload/clearsword.app/clearsword
+            cp clearsword/Info.plist /tmp/oldipa/Payload/clearsword.app/
+            cp clearsword/Base.lproj/Main.storyboard /tmp/oldipa/Payload/clearsword.app/Base.lproj/
+            cp clearsword/Base.lproj/LaunchScreen.storyboard /tmp/oldipa/Payload/clearsword.app/Base.lproj/
+            printf 'APPL????' > /tmp/oldipa/Payload/clearsword.app/PkgInfo
+          fi
+          chmod +x /tmp/oldipa/Payload/clearsword.app/clearsword
+          ldid -Hsha1 -Sent.xml /tmp/oldipa/Payload/clearsword.app/clearsword
+          ldid -e /tmp/oldipa/Payload/clearsword.app/clearsword | head -30
+          cd /tmp/oldipa
+          rm -f /tmp/clearsword-linux.ipa
+          zip -qr9 /tmp/clearsword-linux.ipa Payload
+          ls -la /tmp/clearsword-linux.ipa
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: clearsword-linux
+          path: /tmp/clearsword-linux.ipa
+          retention-days: 30
