@@ -15,7 +15,7 @@ jobs:
       - name: Install toolchain
         run: |
           sudo apt-get update -q
-          sudo apt-get install -y -q libssl-dev libplist-dev clang llvm unzip zip
+          sudo apt-get install -y -q libssl-dev libplist-dev clang llvm lld unzip zip
 
       - name: Build ldid
         run: |
