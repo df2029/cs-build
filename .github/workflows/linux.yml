@@ -42,6 +42,8 @@ jobs:
           SDK=/opt/sdks/iPhoneOS16.5.sdk
           clang -target arm64-apple-ios15.0 \
             -isysroot "$SDK" \
+            --ld-path=/usr/bin/ld64.lld \
+            -fuse-ld=lld \
             -fobjc-arc -fobjc-runtime=ios-15.0.0 \
             -I./clearsword \
             -framework IOKit -framework IOSurface -framework Foundation -framework UIKit \
