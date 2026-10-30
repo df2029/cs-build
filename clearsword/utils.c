@@ -72,25 +72,25 @@ int offsets_init(void) {
         LOG_ERR("Unsupported version: %s", version);
         return -1;
     } else if (OS_VERSION_AT_LEAST(26, 0)) {
-        g_offsets.inpcb_icmp6filt = 0x148;
+        g_offsets.inpcb_icmp6filt = 0x150;  // 0x138 + 0x18, verified in original DarkSword main.m
         g_offsets.socket_so_count = 0x23c;
         g_offsets.socket_so_background_thread = 0x298;
         g_offsets.thread_t_ro = 0x390;  // TODO: this changes a lot and with different devices
         g_offsets.thread_ro_proc = 0x18;
     } else if (OS_VERSION_AT_LEAST(18, 0)) {
-        g_offsets.inpcb_icmp6filt = 0x148;
+        g_offsets.inpcb_icmp6filt = 0x150;  // 0x138 + 0x18, verified in original DarkSword main.m (NOT 0x148)
         g_offsets.socket_so_count = 0x254;
         g_offsets.socket_so_background_thread = 0x2b0;
         g_offsets.thread_t_ro = 0x378;  // TODO: this changes with 18.1, 18.4, 18.6 and different devices
         g_offsets.thread_ro_proc = 0x18;
     } else if (OS_VERSION_AT_LEAST(17, 4)) {
-        g_offsets.inpcb_icmp6filt = 0x148;
+        g_offsets.inpcb_icmp6filt = 0x150;  // 0x138 + 0x18, verified in original DarkSword main.m
         g_offsets.socket_so_count = 0x254;
         g_offsets.socket_so_background_thread = 0x2b0;
         g_offsets.thread_t_ro = 0x3a0;  // TODO: this changes a lot and with different devices
         g_offsets.thread_ro_proc = 0x18;
     } else if (OS_VERSION_AT_LEAST(17, 1)) {
-        g_offsets.inpcb_icmp6filt = 0x148;
+        g_offsets.inpcb_icmp6filt = 0x150;  // 0x138 + 0x18, verified in original DarkSword main.m
         g_offsets.socket_so_count = 0x24c;
         g_offsets.socket_so_background_thread = 0x2a8;
         g_offsets.thread_t_ro = 0x368;  // TODO: this changes a lot and with different devices

